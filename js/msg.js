@@ -525,6 +525,7 @@
       if (this.o.mode === 'pubsub') {
         this.broker = { x: v ? W / 2 : 400, y: v ? 160 : H / 2, hw: v ? 188 : 150, hh: v ? 62 : 200 };
         this._box(this.broker, 'queue broker', 'Broker', '', true);
+        this.broker.title.setAttribute('text-anchor', 'start');
         this.broker.cells = svgEl('g', {}, this.broker.g);
         this._link(this.prod, this.broker);
       }
@@ -559,7 +560,9 @@
           const rows = n > 3 ? 2 : 1, per = Math.ceil(n / rows);
           const row = Math.floor(i / per), col = i % per;
           const inRow = row === rows - 1 ? n - per * (rows - 1) : per;
-          t = { x: W * (col + 0.5) / inRow, y: rows === 1 ? 340 : row === 0 ? 300 : 392, hw: Math.min(64, W / inRow / 2 - 6), hh: rows === 1 ? 32 : 26 };
+          // con dos filas, la segunda va en los huecos de la primera para que sus líneas no crucen cajas
+          const x = rows === 2 && row === 1 && inRow < per ? W * (col + 1) / (inRow + 1) : W * (col + 0.5) / inRow;
+          t = { x, y: rows === 1 ? 340 : row === 0 ? 300 : 392, hw: Math.min(rows === 2 ? 52 : 64, W / inRow / 2 - 6), hh: rows === 1 ? 32 : 26 };
         } else {
           const gap = Math.min(112, (H - 110) / n);
           t = { x: 770, y: H / 2 + (i - (n - 1) / 2) * gap, hw: 92, hh: Math.min(32, gap / 2 - 6) };
@@ -707,6 +710,17 @@
 
     _drawEvents() {
       const b = this.broker, v = this.v;
+      if (b && !v && this.subs.length) {
+        // el broker abarca todos los carriles
+        const ys = this.subs.map(sb => sb.y);
+        b.hh = (Math.max(...ys) - Math.min(...ys)) / 2 + 30;
+        b.y = (Math.max(...ys) + Math.min(...ys)) / 2;
+        b.g.setAttribute('transform', `translate(${b.x},${b.y})`);
+        b.box.setAttribute('y', -b.hh); b.box.setAttribute('height', b.hh * 2);
+        b.title.setAttribute('y', -b.hh - 10);
+        b.title.setAttribute('x', -b.hw);
+      }
+      if (b && v) { b.title.setAttribute('y', -b.hh - 8); b.title.setAttribute('x', -b.hw); }
       if (b) {
         // un carril por suscriptor dentro del broker, con su cola
         const sig = this.subs.map(sb => `${sb.x|0},${sb.y|0}:` + sb.queue.slice(0, 8).map(m => m.type[0]).join('') + sb.queue.length).join('|');

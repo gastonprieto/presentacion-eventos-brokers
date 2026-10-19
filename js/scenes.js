@@ -57,5 +57,26 @@
 
   const fmtRate = r => `${String(r).replace('.', ',')} /s`;
 
+  const FRAUDE = { id: 'fraude', label: 'Fraude', icon: '🛡', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] };
+
+  // Escena de eventos: ＋ Fraude, reset y clic en los servicios (lo maneja el motor)
+  function eventScene(slide, base) {
+    const sim = msetup(slide, base);
+    const add = slide.querySelector('[data-act=add]');
+    const sync = () => { if (add) add.disabled = !!sim.sub('fraude'); };
+    on(slide, '[data-act=add]', () => { sim.addSubscriber(FRAUDE); sync(); });
+    on(slide, '[data-act=reset]', () => { sim.reset(base); sync(); });
+    sync();
+    return sim;
+  }
+
+  /* ---------- 3. sin broker: llamadas directas en serie ---------- */
+
+  S.direct = slide => life(eventScene(slide, { mode: 'direct', rate: 1, seed: 3 }));
+
+  /* ---------- 4. publicar y suscribirse ---------- */
+
+  S.pubsub = slide => life(eventScene(slide, { mode: 'pubsub', rate: 1, seed: 4 }));
+
   window.Scenes = S;
 })();

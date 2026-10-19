@@ -304,6 +304,53 @@ test('msg: reset vuelve a los suscriptores iniciales', async page => {
 // índices de slide (0 = portada)
 const SL = { command: 1, direct: 2, pubsub: 3, pace: 4, consistency: 5, chain: 6, complex: 7, summary: 8 };
 
+test('escena: direct clic apaga y falla', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.direct, sec => {
+    const sim = sec._scene.sim;
+    sim.subs.find(x => x.id === 'mails').g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    sim.fastForward(10);
+    return { up: sim.sub('mails').up, rejected: sim.window(5).rejected };
+  });
+  check(r.up === false, 'mails sigue prendido');
+  check(r.rejected > 0, `rejected=${r.rejected}`);
+});
+
+test('escena: direct ＋Fraude frena al productor', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.direct, sec => {
+    const sim = sec._scene.sim;
+    sec.querySelector('[data-act=add]').click();
+    const a = sim.window(5).sent;
+    sim.fastForward(1.8);
+    return { a, b: sim.window(5).sent, fraude: !!sim.sub('fraude') };
+  });
+  check(r.fraude, 'no se agregó fraude');
+  check(r.a === r.b, `envió durante el redeploy: ${r.a} → ${r.b}`);
+});
+
+test('escena: pubsub ＋Fraude sin frenar', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.pubsub, sec => {
+    const sim = sec._scene.sim;
+    sec.querySelector('[data-act=add]').click();
+    const a = sim.window(5).sent;
+    sim.fastForward(4);
+    return { a, b: sim.window(5).sent, fraude: sim.sub('fraude') && sim.sub('fraude').done };
+  });
+  check(r.b > r.a, `el productor se frenó: ${r.a} → ${r.b}`);
+  check(r.fraude > 0, `fraude.done=${r.fraude}`);
+});
+
+test('notas: slides 1 a 4 con pregunta', async page => {
+  await open(page);
+  const bad = await page.evaluate(() => [...document.querySelectorAll('.reveal .slides > section')].slice(0, 4)
+    .map((s, i) => (s.querySelector('aside.notes') && s.querySelector('aside.notes').textContent.includes('?') ? 0 : i + 1)).filter(Boolean));
+  const n = await page.evaluate(() => document.querySelectorAll('.reveal .slides > section').length);
+  check(n >= 4, `slides=${n}`);
+  check(!bad.length, `sin pregunta: ${bad}`);
+});
+
 /* ---------- runner ---------- */
 
 (async () => {

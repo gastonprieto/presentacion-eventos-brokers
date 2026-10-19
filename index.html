@@ -37,6 +37,101 @@
   </aside>
 </section>
 
+<!-- ============ 2. COMANDO VS. EVENTO ============ -->
+<section>
+  <div class="kicker purple">Qué viaja</div>
+  <h2>Comando vs. evento</h2>
+  <div class="compare">
+    <div class="layer-card l4">
+      <h3>📨 Comando <small>"hacé esto"</small></h3>
+      <div class="packet"><div class="tag">mensaje</div><span class="seen">GenerarFactura</span> → orden #1234</div>
+      <ul>
+        <li class="fragment">Es un <b>pedido de trabajo</b>.</li>
+        <li class="fragment">Lo hace <b>uno</b>: el que sabe facturar.</li>
+        <li class="fragment">El que pide sabe a quién se lo pide.</li>
+      </ul>
+      <div class="ex">Lo que vimos la clase pasada: una cola y workers iguales.</div>
+    </div>
+    <div class="layer-card l7">
+      <h3>📣 Evento <small>"esto pasó"</small></h3>
+      <div class="packet"><div class="tag">evento</div><span class="seen">OrdenCreada</span> → orden #1234</div>
+      <ul>
+        <li class="fragment">Es un <b>hecho</b> que ya ocurrió.</li>
+        <li class="fragment">Le llega a <b>todos los interesados</b>, y cada uno hace lo suyo.</li>
+        <li class="fragment">El que publica <b>no sabe quién escucha</b>.</li>
+      </ul>
+      <div class="ex">Facturación factura, Stock descuenta, Mails avisa, Analytics registra.</div>
+    </div>
+  </div>
+  <aside class="notes">
+    Contrastar con la clase de colas: allá el mensaje era un pedido ("generá esta factura") y lo tomaba uno de varios workers iguales.
+    Un evento cuenta algo que ya pasó, en pasado: "se creó la orden". No le dice a nadie qué hacer.
+    Pregunta para la clase: ¿qué otros eventos se les ocurren en un e-commerce? (PagoAprobado, EnvíoDespachado, StockAgotado…)
+  </aside>
+</section>
+
+<!-- ============ 3. SIN BROKER ============ -->
+<section data-scene="direct">
+  <div class="kicker red">Sin broker</div>
+  <h2>Órdenes llama a cada uno y espera</h2>
+  <div class="demo">
+    <div class="stage">
+      <svg class="sim"></svg>
+      <div class="hint">👆 clic en un servicio para apagarlo</div>
+    </div>
+    <div class="panel">
+      <p class="lead">Cada orden nueva llama <b>en serie</b> a Facturación, Stock, Mails y Analytics, y espera que todos respondan.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="add">＋ Fraude</button>
+        <button class="btn ghost" data-act="reset">↺</button>
+      </div>
+      <div class="mstats" data-fields="sent,rejected,respP95"></div>
+      <ul class="points">
+        <li class="fragment">Si Mails se cae, <b>falla la orden</b>, aunque mandar el mail no era urgente.</li>
+        <li class="fragment">La respuesta tarda lo que tardan <b>todos juntos</b>.</li>
+        <li class="fragment">Sumar un servicio nuevo obliga a <b>cambiar y redesplegar Órdenes</b>.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    Mostrar que cada orden tarda la suma de los cuatro servicios.
+    Apagar Mails con un clic: las órdenes empiezan a fallar por timeout. Analytics ni siquiera se entera.
+    Tocar "＋ Fraude": Órdenes se frena porque hay que cambiar su código para agregar la llamada.
+    Pregunta para la clase: ¿por qué una compra tiene que fallar si el que se cayó es el servicio de mails?
+  </aside>
+</section>
+
+<!-- ============ 4. PUBLICAR Y SUSCRIBIRSE ============ -->
+<section data-scene="pubsub">
+  <div class="kicker green">Con broker</div>
+  <h2>Publicar una vez, que le llegue a cada uno</h2>
+  <div class="demo">
+    <div class="stage">
+      <svg class="sim"></svg>
+      <div class="hint">un evento → una copia para cada suscriptor</div>
+    </div>
+    <div class="panel">
+      <p class="lead">Órdenes publica <b>OrdenCreada</b> en el broker y sigue. El broker deja <b>una copia en la cola de cada suscriptor</b>.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="add">＋ Fraude</button>
+        <button class="btn ghost" data-act="reset">↺</button>
+      </div>
+      <div class="mstats" data-fields="sent,rejected,respP95"></div>
+      <ul class="points">
+        <li class="fragment">En la cola, cada mensaje lo toma <b>uno</b>. Acá, <b>cada suscriptor recibe su copia</b>.</li>
+        <li class="fragment">Los suscriptores son <b>distintos</b> entre sí: cada uno hace otra cosa.</li>
+        <li class="fragment">Sumar a Fraude <b>no toca a Órdenes</b>: solo se suscribe.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    Mirar cómo cada evento que entra al broker aparece en los cuatro carriles: uno por suscriptor.
+    Tocar "＋ Fraude": aparece un suscriptor nuevo y empieza a recibir eventos, y Órdenes nunca se frenó.
+    Apagar uno con un clic: su carril se llena, pero las órdenes no fallan.
+    Pregunta para la clase: comparado con la clase de colas, ¿qué cambió? ¿Cuántos reciben cada mensaje y qué tan parecidos son entre sí?
+  </aside>
+</section>
+
 </div>
 </div>
 
