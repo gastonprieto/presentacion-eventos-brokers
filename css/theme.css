@@ -365,3 +365,7 @@ html.mobile .speed-ctl span { min-width: 34px; }
 .layer-card.bad-top { border-top-color: var(--red); }
 .products { margin-top: 14px; font: 13px var(--mono); color: var(--muted); text-align: center; }
 html.mobile .products { font-size: 12px; text-align: left; }
+.msgsim .broker .node-box { stroke-dasharray: none; stroke-width: 2.5; }
+.msgsim .lane { fill: rgba(251, 146, 60, .06); stroke: rgba(251, 146, 60, .35); stroke-width: 1; }
+.msgsim .sub.down .node-box { fill: #3a1018; stroke: var(--red); }
+.msgsim .sub.down .t-sub { fill: var(--red); font-weight: 700; }

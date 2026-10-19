@@ -185,6 +185,121 @@ test('msg: resultados independientes de la velocidad', async page => {
   check(a.sent === b.sent && a.rejected === b.rejected, `0,25×=${JSON.stringify(a)} 1,5×=${JSON.stringify(b)}`);
 });
 
+/* ---------- motor: modos direct y pubsub ---------- */
+
+test('msg: direct falla si uno cae', async page => {
+  await open(page);
+  const r = await engine(page, svg => {
+    const s = new MsgKit.MsgSim(svg, { mode: 'direct', rate: 1, seed: 1 });
+    s.setSubscriberUp('mails', false);
+    s.fastForward(15);
+    return { rejected: s.window(5).rejected, analytics: s.sub('analytics').done };
+  });
+  check(r.rejected > 5, `rejected=${r.rejected}`);
+  check(r.analytics === 0, `analytics.done=${r.analytics}`);
+});
+
+test('msg: pubsub aísla fallas', async page => {
+  await open(page);
+  const r = await engine(page, svg => {
+    const s = new MsgKit.MsgSim(svg, { mode: 'pubsub', rate: 1, seed: 1 });
+    s.setSubscriberUp('mails', false);
+    s.fastForward(15);
+    const mid = { rejected: s.window(5).rejected, stockLag: s.sub('stock').lag, mailsQ: s.sub('mails').queueLen };
+    s.setSubscriberUp('mails', true);
+    s.fastForward(30);
+    return Object.assign(mid, { mailsLag: s.sub('mails').lag });
+  });
+  check(r.rejected === 0, `rejected=${r.rejected}`);
+  check(r.stockLag <= 1, `stock.lag=${r.stockLag}`);
+  check(r.mailsQ >= 10, `mails.queueLen=${r.mailsQ}`);
+  check(r.mailsLag <= 1, `mails.lag final=${r.mailsLag}`);
+});
+
+test('msg: fan-out una copia por suscriptor', async page => {
+  await open(page);
+  const r = await engine(page, svg => {
+    const s = new MsgKit.MsgSim(svg, { mode: 'pubsub', rate: 1, seed: 1 });
+    s.fastForward(10);
+    s.setRate(0);
+    s.fastForward(10);
+    return { pub: s.published('OrdenCreada'), done: ['facturacion', 'stock', 'mails', 'analytics'].map(id => s.sub(id).done) };
+  });
+  check(r.pub > 5, `published=${r.pub}`);
+  check(r.done.every(d => d === r.pub), `published=${r.pub} done=${r.done}`);
+});
+
+test('msg: addSubscriber en vivo', async page => {
+  await open(page);
+  const r = await engine(page, svg => {
+    const s = new MsgKit.MsgSim(svg, { mode: 'pubsub', rate: 1, seed: 1 });
+    s.fastForward(3);
+    const sent0 = s.window(5).sent;
+    s.addSubscriber({ id: 'fraude', label: 'Fraude', icon: '🛡', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] });
+    s.fastForward(2);
+    const sent1 = s.window(5).sent;
+    s.fastForward(8);
+    return { sent0, sent1, fraude: s.sub('fraude').done };
+  });
+  check(r.sent1 > r.sent0, `el productor se frenó: ${r.sent0} → ${r.sent1}`);
+  check(r.fraude > 0, `fraude.done=${r.fraude}`);
+});
+
+test('msg: addSubscriber respeta el máximo', async page => {
+  await open(page);
+  const n = await engine(page, svg => {
+    const s = new MsgKit.MsgSim(svg, { mode: 'pubsub', rate: 1, seed: 1 });
+    for (let i = 0; i < 3; i++) s.addSubscriber({ id: 'x' + i, label: 'X', icon: '•', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] });
+    return s.subs.length;
+  });
+  check(n === 5, `suscriptores=${n}`);
+});
+
+test('msg: direct addSubscriber frena al productor', async page => {
+  await open(page);
+  const r = await engine(page, svg => {
+    const s = new MsgKit.MsgSim(svg, { mode: 'direct', rate: 2, seed: 1 });
+    s.fastForward(3);
+    s.addSubscriber({ id: 'fraude', label: 'Fraude', icon: '🛡', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] });
+    const a = s.window(5).sent;
+    s.fastForward(1.8);
+    const b = s.window(5).sent;
+    s.fastForward(3);
+    return { a, b, c: s.window(5).sent };
+  });
+  check(r.b === r.a, `envió durante el redeploy: ${r.a} → ${r.b}`);
+  check(r.c > r.b, `no volvió a enviar: ${r.b} → ${r.c}`);
+});
+
+test('msg: cadena espera al emisor', async page => {
+  await open(page);
+  const r = await engine(page, svg => {
+    const subs = MsgKit.DEFAULT_SUBS.map(x => Object.assign({}, x, x.id === 'mails' ? { listens: ['FacturaEmitida'] } : {}));
+    const s = new MsgKit.MsgSim(svg, { mode: 'pubsub', rate: 1, seed: 1, subscribers: subs });
+    s.setSubscriberUp('facturacion', false);
+    s.fastForward(10);
+    const fe0 = s.published('FacturaEmitida');
+    s.setSubscriberUp('facturacion', true);
+    s.fastForward(20);
+    return { fe0, fe1: s.published('FacturaEmitida'), mails: s.sub('mails').done };
+  });
+  check(r.fe0 === 0, `FacturaEmitida con facturación apagada=${r.fe0}`);
+  check(r.fe1 > 0, `FacturaEmitida=${r.fe1}`);
+  check(r.mails > 0, `mails.done=${r.mails}`);
+});
+
+test('msg: reset vuelve a los suscriptores iniciales', async page => {
+  await open(page);
+  const n = await engine(page, svg => {
+    const o = { mode: 'pubsub', rate: 1, seed: 1 };
+    const s = new MsgKit.MsgSim(svg, o);
+    s.addSubscriber({ id: 'fraude', label: 'Fraude', icon: '🛡', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] });
+    s.reset(o);
+    return s.subs.length;
+  });
+  check(n === 4, `suscriptores=${n}`);
+});
+
 /* ---------- escenas ---------- */
 // índices de slide (0 = portada)
 const SL = { command: 1, direct: 2, pubsub: 3, pace: 4, consistency: 5, chain: 6, complex: 7, summary: 8 };

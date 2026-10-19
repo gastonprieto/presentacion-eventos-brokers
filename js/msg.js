@@ -69,6 +69,7 @@
       this.queue = []; this.flying = new Set(); this.seq = 0;
       this.crashPending = false; this.arrTimer = null;
       this.workers = [];
+      this.subs = []; this.pub = {}; this.paused = false;
       this._build();
       this._scheduleArrival();
       this._frame();
@@ -77,7 +78,10 @@
 
     /* ---------- topología y dibujo ---------- */
 
+    get events() { return this.o.mode === 'direct' || this.o.mode === 'pubsub'; }
+
     _build() {
+      if (this.events) { this._buildEvents(); return; }
       const L = this.o.labels, v = this.v, sync = this.o.mode === 'sync';
       this.prod = v ? { x: W / 2, y: 46, hw: 92, hh: 28 } : { x: 105, y: H / 2, hw: 78, hh: 36 };
       this._box(this.prod, 'prod', L.producer, L.producerSub);
@@ -187,6 +191,7 @@
     crashBeforeAck() { this.crashPending = true; }
 
     _send(extra) {
+      if (this.events) { if (!this.paused) this._sendEvent(); return; }
       const m = Object.assign({ id: ++this.seq, poison: false, tries: 0, redo: false, tt: 0 }, extra);
       this.c.sent++;
       this.sentLog.push(this.now);
@@ -394,6 +399,10 @@
       const t0 = this.now - sec;
       const inW = arr => arr.filter(e => e[0] >= t0).map(e => e[1]);
       const resp = inW(this.respLog), done = inW(this.doneLog);
+      if (this.events) return Object.assign({}, this.c, {
+        respP50: quant(resp, 0.5), respP95: quant(resp, 0.95), queueLen: 0, inFlight: 0,
+        inRate: this.sentLog.filter(t => t >= t0).length / sec, outRate: 0
+      });
       return Object.assign({}, this.c, {
         queueLen: this.queue.length,
         inFlight: this.flying.size,
@@ -422,7 +431,8 @@
       if (this.respLog.length > 4000) this.respLog = this.respLog.filter(e => e[0] >= old);
 
       for (const l of this.links) l.el.setAttribute('d', curve(edge(l.a, l.b, this.v), edge(l.b, l.a, this.v), this.v));
-      if (this.o.mode === 'sync') this._drawSlots(); else { this._drawQueue(); this.workers.forEach(w => this._drawWorker(w)); }
+      if (this.events) this._drawEvents();
+      else if (this.o.mode === 'sync') this._drawSlots(); else { this._drawQueue(); this.workers.forEach(w => this._drawWorker(w)); }
       this.emit('tick', this.now);
     }
 
@@ -493,5 +503,262 @@
     }
   }
 
-  window.MsgKit = { MsgSim, rng };
+  /* ================= eventos: 'direct' y 'pubsub' ================= */
+  // direct: Órdenes llama en serie a cada servicio y espera; si uno no responde, la orden falla.
+  // pubsub: Órdenes publica un evento en el broker; el broker deja una copia en la cola de cada suscriptor.
+
+  const EV_COLORS = { OrdenCreada: '#7dd3fc', FacturaEmitida: '#a78bfa' };
+  const CELL_COLORS = { OrdenCreada: ORANGE, FacturaEmitida: '#a78bfa' };
+  const DEFAULT_SUBS = [
+    { id: 'facturacion', label: 'Facturación', icon: '🧾', workTime: 0.8, workers: 1, listens: ['OrdenCreada'], emits: 'FacturaEmitida' },
+    { id: 'stock', label: 'Stock', icon: '📦', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] },
+    { id: 'mails', label: 'Mails', icon: '✉️', workTime: 0.6, workers: 1, listens: ['OrdenCreada'] },
+    { id: 'analytics', label: 'Analytics', icon: '📊', workTime: 0.4, workers: 1, listens: ['OrdenCreada'] }
+  ];
+  Object.assign(DEFAULTS, { event: 'OrdenCreada', maxSubscribers: 5, callTimeout: 2, subscribers: null });
+
+  Object.assign(MsgSim.prototype, {
+    _buildEvents() {
+      const v = this.v, L = this.o.labels;
+      this.prod = v ? { x: W / 2, y: 40, hw: 96, hh: 26 } : { x: 100, y: H / 2, hw: 74, hh: 36 };
+      this._box(this.prod, 'prod', L.producer === DEFAULTS.labels.producer ? '🛒 Órdenes' : L.producer, 'productor');
+      if (this.o.mode === 'pubsub') {
+        this.broker = { x: v ? W / 2 : 400, y: v ? 160 : H / 2, hw: v ? 188 : 150, hh: v ? 62 : 200 };
+        this._box(this.broker, 'queue broker', 'Broker', '', true);
+        this.broker.cells = svgEl('g', {}, this.broker.g);
+        this._link(this.prod, this.broker);
+      }
+      (this.o.subscribers || DEFAULT_SUBS).forEach(x => this._addSub(x, false));
+      this._layoutSubs(false);
+      this._banner = null;
+    },
+
+    _addSub(def, fresh) {
+      const sb = Object.assign({ workers: 1, listens: [this.o.event] }, def, {
+        queue: [], busy: [], up: true, done: 0, received: 0, scale: fresh ? 0 : 1, hw: 80, hh: 30, x: 0, y: 0
+      });
+      sb.g = svgEl('g', { class: 'srv sub clickable' }, this.gNodes);
+      sb.inner = svgEl('g', {}, sb.g);
+      sb.box = svgEl('rect', { class: 'node-box', rx: 9 }, sb.inner);
+      sb.title = svgEl('text', { class: 't-title small' }, sb.inner);
+      sb.sub = svgEl('text', { class: 't-sub' }, sb.inner);
+      sb.g.addEventListener('click', () => this.setSubscriberUp(sb.id, !sb.up));
+      if (this.broker) {
+        sb.lane = { x: 0, y: 0, hw: 0, hh: 0 };
+        sb.link = this._link(sb.lane, sb);
+      } else sb.link = this._link(this.prod, sb);
+      this.subs.push(sb);
+      return sb;
+    },
+
+    _layoutSubs(animate) {
+      const n = this.subs.length, v = this.v, b = this.broker;
+      this.subs.forEach((sb, i) => {
+        let t;
+        if (v) {
+          const rows = n > 3 ? 2 : 1, per = Math.ceil(n / rows);
+          const row = Math.floor(i / per), col = i % per;
+          const inRow = row === rows - 1 ? n - per * (rows - 1) : per;
+          t = { x: W * (col + 0.5) / inRow, y: rows === 1 ? 340 : row === 0 ? 300 : 392, hw: Math.min(64, W / inRow / 2 - 6), hh: rows === 1 ? 32 : 26 };
+        } else {
+          const gap = Math.min(112, (H - 110) / n);
+          t = { x: 770, y: H / 2 + (i - (n - 1) / 2) * gap, hw: 92, hh: Math.min(32, gap / 2 - 6) };
+        }
+        if (sb.scale === 0) { Object.assign(sb, t); gsap.to(sb, { scale: 1, duration: 0.45, ease: 'back.out(1.7)' }); }
+        else if (animate) gsap.to(sb, Object.assign({ duration: 0.45, ease: 'power2.inOut' }, t));
+        else Object.assign(sb, t);
+      });
+    },
+
+    sub(id) {
+      const sb = this.subs.find(x => x.id === id);
+      if (!sb) return null;
+      return { queueLen: sb.queue.length, done: sb.done, up: sb.up, workers: sb.workers, received: sb.received, lag: sb.received - sb.done };
+    },
+
+    published(type) { return this.pub[type] || 0; },
+    publish() { this._sendEvent(); },
+
+    _sendEvent() {
+      this.c.sent++;
+      this.sentLog.push(this.now);
+      const t0 = this.now;
+      if (this.o.mode === 'pubsub') {
+        this._fly({}, this.prod, this.broker, EV_COLORS[this.o.event], () => {
+          this.c.accepted++;
+          this.respLog.push([this.now, 0]);
+          this._publish(this.o.event);
+        });
+        return;
+      }
+      // direct: llamadas en serie, cada una espera la respuesta
+      this.pub[this.o.event] = (this.pub[this.o.event] || 0) + 1;
+      const targets = this.subs.filter(x => x.listens.includes(this.o.event));
+      let spent = 0;
+      const next = i => {
+        if (i >= targets.length) {
+          this.c.done++;
+          this.respLog.push([this.now, spent]);
+          this._pop(this.prod, '✔', C.ok);
+          return;
+        }
+        const sb = targets[i];
+        this._fly({}, this.prod, sb, C.req, () => {
+          if (!sb.up) {
+            this.clock.after(this.o.callTimeout, () => {
+              this.c.rejected++;
+              this.respLog.push([this.now, spent + this.o.callTimeout]);
+              this._pop(sb, 'timeout', C.err);
+              this._pop(this.prod, '✗ orden fallida', C.err);
+            });
+            return;
+          }
+          const d = this._workTime(sb.workTime);
+          sb.busy.push(1);
+          this.clock.after(d, () => {
+            sb.busy.pop();
+            sb.done++; sb.received++;
+            spent += d;
+            next(i + 1);
+          });
+        }, this.o.travel * 0.6);
+      };
+      next(0);
+      void t0;
+    },
+
+    _publish(type) {
+      this.pub[type] = (this.pub[type] || 0) + 1;
+      this.subs.filter(x => x.listens.includes(type)).forEach(sb => {
+        sb.received++;
+        sb.queue.push({ type, t0: this.now });
+        this._dispatchSub(sb);
+      });
+    },
+
+    _dispatchSub(sb) {
+      while (sb.up && sb.busy.length < sb.workers && sb.queue.length) {
+        const m = sb.queue.shift();
+        sb.busy.push(m);
+        const tok = m.tok = (m.tok || 0) + 1;
+        const tr = this.o.travel * 0.6;
+        this._fly({}, sb.lane, sb, EV_COLORS[m.type], () => {
+          if (m.tok !== tok) return;
+          m.start = this.now;
+          m.dur = Math.max(0.05, this._workTime(sb.workTime) - tr);
+          m.timer = this.clock.after(m.dur, () => {
+            if (m.tok !== tok) return;
+            sb.busy = sb.busy.filter(x => x !== m);
+            sb.done++;
+            this._pop(sb, '✔', C.ok, 4);
+            if (sb.emits) this._fly({}, sb, this.broker, EV_COLORS[sb.emits], () => this._publish(sb.emits));
+            this._dispatchSub(sb);
+          });
+        }, tr);
+      }
+    },
+
+    setSubscriberUp(id, up) {
+      const sb = this.subs.find(x => x.id === id);
+      if (!sb) return;
+      sb.up = up;
+      if (!up) {
+        // lo que estaba procesando no se confirmó: vuelve a su cola
+        sb.busy.slice().reverse().forEach(m => {
+          if (m === 1) return;
+          m.tok++;
+          if (m.timer) this.clock.cancel(m.timer);
+          sb.queue.unshift(m);
+        });
+        if (this.broker) sb.busy = [];
+      } else if (this.broker) this._dispatchSub(sb);
+    },
+
+    setSubscriberWorkers(id, n) {
+      const sb = this.subs.find(x => x.id === id);
+      if (!sb) return;
+      sb.workers = Math.max(1, Math.min(4, n));
+      this._dispatchSub(sb);
+    },
+
+    addSubscriber(def) {
+      if (this.subs.length >= this.o.maxSubscribers || this.subs.some(x => x.id === def.id)) return false;
+      this._addSub(def, true);
+      this._layoutSubs(true);
+      if (this.o.mode === 'direct') {
+        // sin broker, sumar un servicio es cambiar el código de Órdenes
+        this.paused = true;
+        this.banner('🔧 Hay que cambiar y redesplegar Órdenes', C.slow);
+        this.clock.after(2, () => { this.paused = false; this.banner(null); });
+      }
+      return true;
+    },
+
+    banner(text, color) {
+      if (this._banner) { this._banner.remove(); this._banner = null; }
+      if (!text) return;
+      const g = svgEl('g', { class: 'banner' }, this.gTop);
+      const y = this.v ? H - 22 : 40, w = this.v ? 360 : 440;
+      svgEl('rect', { x: W / 2 - w / 2, y: y - 20, width: w, height: 36, rx: 10, stroke: color }, g);
+      const t = svgEl('text', { x: W / 2, y: y + 4, 'text-anchor': 'middle', fill: color }, g);
+      t.textContent = text;
+      this._banner = g;
+    },
+
+    _drawEvents() {
+      const b = this.broker, v = this.v;
+      if (b) {
+        // un carril por suscriptor dentro del broker, con su cola
+        const sig = this.subs.map(sb => `${sb.x|0},${sb.y|0}:` + sb.queue.slice(0, 8).map(m => m.type[0]).join('') + sb.queue.length).join('|');
+        this.subs.forEach(sb => {
+          Object.assign(sb.lane, v ? { x: sb.x, y: b.y + b.hh } : { x: b.x + b.hw, y: sb.y });
+        });
+        if (b.cells._sig !== sig) {
+          b.cells._sig = sig;
+          b.cells.innerHTML = '';
+          const cw = 16, gap = 4;
+          this.subs.forEach(sb => {
+            const max = v ? 4 : 8;
+            const ly = v ? 0 : sb.y - b.y;
+            const lx = v ? sb.x - b.x : 0;
+            if (!v) svgEl('rect', { class: 'lane', x: -b.hw + 12, y: ly - 14, width: b.hw * 2 - 24, height: 28, rx: 6 }, b.cells);
+            else svgEl('rect', { class: 'lane', x: lx - 15, y: -b.hh + 30, width: 30, height: b.hh * 2 - 36, rx: 6 }, b.cells);
+            sb.queue.slice(0, max).forEach((m, i) => {
+              const x = v ? lx - cw / 2 : b.hw - 18 - cw - i * (cw + gap);
+              const y = v ? b.hh - 12 - cw - i * (cw + gap) : ly - cw / 2;
+              svgEl('rect', { class: 'msg q', x, y, width: cw, height: cw, rx: 4, fill: CELL_COLORS[m.type] || ORANGE }, b.cells);
+            });
+            if (sb.queue.length > max || !v && sb.queue.length) {
+              const t = svgEl('text', { class: 't-info', x: v ? lx : -b.hw + 22, y: v ? -b.hh + 46 : ly + 5, 'text-anchor': v ? 'middle' : 'start' }, b.cells);
+              t.textContent = v ? `${sb.queue.length}` : `${sb.queue.length}`;
+            }
+          });
+        }
+      }
+      this.subs.forEach(sb => {
+        sb.g.setAttribute('transform', `translate(${sb.x},${sb.y}) scale(${sb.scale})`);
+        sb.g.classList.toggle('down', !sb.up);
+        sb.box.setAttribute('x', -sb.hw); sb.box.setAttribute('y', -sb.hh);
+        sb.box.setAttribute('width', sb.hw * 2); sb.box.setAttribute('height', sb.hh * 2);
+        const narrow = sb.hw < 70;
+        sb.title.setAttribute('x', narrow ? 0 : -sb.hw + 12); sb.title.setAttribute('y', narrow ? -4 : -3);
+        sb.title.setAttribute('text-anchor', narrow ? 'middle' : 'start');
+        sb.sub.setAttribute('x', narrow ? 0 : -sb.hw + 12); sb.sub.setAttribute('y', narrow ? 12 : 14);
+        sb.sub.setAttribute('text-anchor', narrow ? 'middle' : 'start');
+        sb.title.textContent = narrow ? `${sb.icon} ${sb.label.length > 7 ? sb.label.slice(0, 6) + '.' : sb.label}` : `${sb.icon} ${sb.label}${sb.workers > 1 ? ` ×${sb.workers}` : ''}`;
+        const lag = sb.received - sb.done;
+        sb.sub.textContent = !sb.up ? 'caído' : narrow ? `✓ ${sb.done}${sb.workers > 1 ? ` ×${sb.workers}` : ''}` : `✓ ${sb.done}${b ? ` · atraso ${lag}` : sb.busy.length ? ' · procesando' : ''}`;
+      });
+    }
+  });
+
+  // _workTime con un tiempo base propio (suscriptores)
+  const baseWork = MsgSim.prototype._workTime;
+  MsgSim.prototype._workTime = function (t) {
+    if (t == null) return baseWork.call(this);
+    const j = this.o.workJitter;
+    return t * (1 - j + 2 * j * this.rand());
+  };
+
+  window.MsgKit = { MsgSim, rng, DEFAULT_SUBS, EV_COLORS };
 })();
