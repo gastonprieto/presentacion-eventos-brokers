@@ -359,12 +359,12 @@ test('escena: analytics se atrasa y réplicas lo arreglan', async page => {
     const lag0 = sim.sub('analytics').lag;
     for (let i = 0; i < 2; i++) sec.querySelector('[data-act=add]').click();
     sim.fastForward(40);
-    return { lag0, lag1: sim.sub('analytics').queueLen, workers: sim.sub('analytics').workers, others: sim.sub('stock').lag, bars: sec.querySelectorAll('.lag-row').length };
+    return { lag0, lag1: sim.sub('analytics').queueLen, workers: sim.sub('analytics').workers, others: sim.sub('stock').queueLen, bars: sec.querySelectorAll('.lag-row').length };
   });
   check(r.lag0 > 5, `lag inicial=${r.lag0}`);
   check(r.workers === 3, `workers=${r.workers}`);
   check(r.lag1 <= 1, `cola de analytics al final=${r.lag1}`);
-  check(r.others <= 1, `stock.lag=${r.others}`);
+  check(r.others <= 1, `cola de stock=${r.others}`);
   check(r.bars === 4, `filas de atraso=${r.bars}`);
 });
 
