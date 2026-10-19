@@ -274,7 +274,7 @@ test('msg: direct addSubscriber frena al productor', async page => {
 test('msg: cadena espera al emisor', async page => {
   await open(page);
   const r = await engine(page, svg => {
-    const subs = MsgKit.DEFAULT_SUBS.map(x => Object.assign({}, x, x.id === 'mails' ? { listens: ['FacturaEmitida'] } : {}));
+    const subs = MsgKit.DEFAULT_SUBS.map(x => Object.assign({}, x, x.id === 'mails' ? { listens: ['FacturaEmitida'] } : x.id === 'facturacion' ? { emits: 'FacturaEmitida' } : {}));
     const s = new MsgKit.MsgSim(svg, { mode: 'pubsub', rate: 1, seed: 1, subscribers: subs });
     s.setSubscriberUp('facturacion', false);
     s.fastForward(10);
@@ -443,6 +443,20 @@ test('mobile: el cartel de redeploy no tapa a los servicios', async page => {
   }, SL.direct);
   check(r.banner, 'no apareció el cartel');
   check(!r.hit.length, `el cartel tapa: ${r.hit}`);
+});
+
+test('escena: FacturaEmitida solo en la slide de la cadena', async page => {
+  await open(page);
+  const r = [];
+  for (const i of [SL.pubsub, SL.pace, SL.consistency]) {
+    r.push(await evalScene(page, i, sec => {
+      const sim = sec._scene.sim;
+      if (sec.querySelector('[data-act=order]')) sec.querySelector('[data-act=order]').click();
+      sim.fastForward(8);
+      return sim.published('FacturaEmitida');
+    }));
+  }
+  check(r.every(n => n === 0), `FacturaEmitida publicadas en pubsub/ritmo/consistencia: ${r}`);
 });
 
 /* ---------- runner ---------- */

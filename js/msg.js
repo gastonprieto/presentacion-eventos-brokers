@@ -510,7 +510,7 @@
   const EV_COLORS = { OrdenCreada: '#7dd3fc', FacturaEmitida: '#a78bfa' };
   const CELL_COLORS = { OrdenCreada: ORANGE, FacturaEmitida: '#a78bfa' };
   const DEFAULT_SUBS = [
-    { id: 'facturacion', label: 'Facturación', icon: '🧾', workTime: 0.8, workers: 1, listens: ['OrdenCreada'], emits: 'FacturaEmitida' },
+    { id: 'facturacion', label: 'Facturación', icon: '🧾', workTime: 0.8, workers: 1, listens: ['OrdenCreada'] },
     { id: 'stock', label: 'Stock', icon: '📦', workTime: 0.5, workers: 1, listens: ['OrdenCreada'] },
     { id: 'mails', label: 'Mails', icon: '✉️', workTime: 0.6, workers: 1, listens: ['OrdenCreada'] },
     { id: 'analytics', label: 'Analytics', icon: '📊', workTime: 0.4, workers: 1, listens: ['OrdenCreada'] }

@@ -123,7 +123,8 @@
   /* ---------- 7. reacciones en cadena: FacturaEmitida → Mails ---------- */
 
   S.chain = slide => {
-    const subs = SUBS().map(x => (x.id === 'mails' ? Object.assign(x, { listens: ['FacturaEmitida'] }) : x));
+    // solo acá Facturación publica FacturaEmitida, y Mails la escucha
+    const subs = SUBS().map(x => (x.id === 'mails' ? Object.assign(x, { listens: ['FacturaEmitida'] }) : x.id === 'facturacion' ? Object.assign(x, { emits: 'FacturaEmitida' }) : x));
     const base = { mode: 'pubsub', rate: 0.8, seed: 7, subscribers: subs };
     const sim = msetup(slide, base);
     const btn = slide.querySelector('[data-act=toggle]');
