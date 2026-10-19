@@ -381,3 +381,9 @@ html.mobile .products { font-size: 12px; text-align: left; }
 .counter b.warn { color: var(--yellow); }
 .counter b.ok { color: var(--green); }
 .counter span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.products { margin-top: 14px; font: 13px var(--mono); color: var(--muted); text-align: center; }
+html.mobile .products { font-size: 12px; text-align: left; }
+.reveal section .compare:has(+ .products) { height: 500px; }
+html.mobile .reveal section .compare:has(+ .products) { height: auto; }
+html.mobile .compare + .products { margin-top: 14px; }
+.summary .card p { font-size: 15px; }

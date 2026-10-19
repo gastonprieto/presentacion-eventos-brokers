@@ -21,7 +21,7 @@
 <div class="slides">
 
 <!-- ============ 1. PORTADA ============ -->
-<section class="title-slide">
+<section class="title-slide" data-scene="title">
   <svg class="bg"></svg>
   <div class="hero">
     <div class="kicker">Publicar y suscribirse</div>
@@ -220,6 +220,57 @@
     Mirar los eventos violetas: salen de Facturación, vuelven al broker y llegan a Mails.
     Apagar Facturación: dejan de salir facturas y Mails se queda sin trabajo, aunque Mails está perfecto. La dependencia existe, pero no está escrita en ningún lado.
     Pregunta para la clase: si un cliente dice "no me llegó la factura", ¿por dónde empiezan a buscar?
+  </aside>
+</section>
+
+<!-- ============ 8. LO QUE SE COMPLICA ============ -->
+<section>
+  <div class="kicker red">Lo que se complica</div>
+  <h2>El costo del desacople</h2>
+  <div class="summary">
+    <div class="card bad fragment"><div class="ico">🔍</div><h4>Seguir qué pasó</h4><p>El flujo está repartido entre suscriptores. Hace falta un id de correlación y trazas para reconstruir la historia de una orden.</p></div>
+    <div class="card bad fragment"><div class="ico">📐</div><h4>El formato del evento es un contrato</h4><p>Cambiar un campo de OrdenCreada puede romper a suscriptores que ni conocés. Versionar con cuidado.</p></div>
+    <div class="card bad fragment"><div class="ico">🔁</div><h4>Duplicados y orden</h4><p>Lo mismo que en las colas: cada suscriptor tiene que ser idempotente y no asumir el orden.</p></div>
+    <div class="card bad fragment"><div class="ico">☠</div><h4>Un suscriptor que falla siempre</h4><p>Reintentos y DLQ por suscriptor, para que un evento roto no frene a ese consumidor para siempre.</p></div>
+    <div class="card bad fragment"><div class="ico">⏳</div><h4>Consistencia eventual</h4><p>Por un rato, no todos están al día. El diseño y la interfaz tienen que tolerarlo.</p></div>
+    <div class="card bad fragment"><div class="ico">🧩</div><h4>Una pieza más</h4><p>El broker hay que operarlo, monitorearlo y hacerlo resistente a fallas: si se cae, nadie se entera de nada.</p></div>
+  </div>
+  <aside class="notes">
+    Pasar por cada tarjeta. Las de duplicados y DLQ ya las vimos con colas; acá se multiplican por la cantidad de suscriptores.
+    La más nueva es la del contrato: el productor ya no sabe quién depende de su evento, así que cualquier cambio es riesgoso.
+    Pregunta para la clase: si quieren agregar un campo a OrdenCreada, ¿cómo lo harían sin romper a nadie?
+  </aside>
+</section>
+
+<!-- ============ 9. RESUMEN ============ -->
+<section>
+  <div class="kicker">Resumen</div>
+  <h2>Cola de mensajes vs. broker de eventos</h2>
+  <div class="compare">
+    <div class="layer-card l4">
+      <h3>📨 Cola de mensajes</h3>
+      <ul>
+        <li class="fragment"><b>Qué viaja:</b> un pedido de trabajo ("hacé esto").</li>
+        <li class="fragment"><b>Cuántos lo reciben:</b> uno.</li>
+        <li class="fragment"><b>Consumidores:</b> iguales entre sí (homogéneos), compiten por los mensajes.</li>
+        <li class="fragment"><b>Para qué:</b> repartir trabajo y amortiguar carga.</li>
+      </ul>
+    </div>
+    <div class="layer-card l7">
+      <h3>📣 Broker de eventos</h3>
+      <ul>
+        <li class="fragment"><b>Qué viaja:</b> un hecho que pasó ("esto ocurrió").</li>
+        <li class="fragment"><b>Cuántos lo reciben:</b> todos los interesados, cada uno su copia.</li>
+        <li class="fragment"><b>Consumidores:</b> distintos entre sí (heterogéneos); adentro de cada uno, réplicas iguales.</li>
+        <li class="fragment"><b>Para qué:</b> que un cambio se propague sin acoplar a los servicios.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="products">En la práctica: Kafka · RabbitMQ (exchanges fanout/topic) · Amazon SNS + SQS / EventBridge · Google Pub/Sub · Azure Service Bus topics / Event Grid</p>
+  <aside class="notes">
+    Repasar fila por fila la comparación. La idea central: en la cola, un mensaje lo toma uno; en el broker de eventos, cada interesado recibe su copia.
+    Muchos productos hacen las dos cosas (RabbitMQ, Service Bus); lo que cambia es cómo se configuran.
+    Pregunta para la clase: en un sistema que conozcan, ¿qué comunicación es un comando y cuál debería ser un evento?
   </aside>
 </section>
 

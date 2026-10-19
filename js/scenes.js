@@ -78,6 +78,10 @@
 
   S.pubsub = slide => life(eventScene(slide, { mode: 'pubsub', rate: 1, seed: 4 }));
 
+  /* ---------- 1. portada: pub/sub decorativo de fondo ---------- */
+
+  S.title = slide => life(new MsgKit.MsgSim(slide.querySelector('svg.bg'), { mode: 'pubsub', rate: 1.5, seed: 11, pops: false }));
+
   const SUBS = () => MsgKit.DEFAULT_SUBS.map(x => Object.assign({}, x));
 
   /* ---------- 5. cada uno a su ritmo: Analytics lento, réplicas adentro ---------- */

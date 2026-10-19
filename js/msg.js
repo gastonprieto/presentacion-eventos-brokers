@@ -557,12 +557,12 @@
       this.subs.forEach((sb, i) => {
         let t;
         if (v) {
-          const rows = n > 3 ? 2 : 1, per = Math.ceil(n / rows);
+          const rows = n > 4 ? 2 : 1, per = rows === 2 ? 3 : n;
           const row = Math.floor(i / per), col = i % per;
           const inRow = row === rows - 1 ? n - per * (rows - 1) : per;
           // con dos filas, la segunda va en los huecos de la primera para que sus líneas no crucen cajas
           const x = rows === 2 && row === 1 && inRow < per ? W * (col + 1) / (inRow + 1) : W * (col + 0.5) / inRow;
-          t = { x, y: rows === 1 ? 340 : row === 0 ? 300 : 392, hw: Math.min(rows === 2 ? 52 : 64, W / inRow / 2 - 6), hh: rows === 1 ? 32 : 26 };
+          t = { x, y: rows === 1 ? 340 : row === 0 ? 300 : 392, hw: Math.min(rows === 2 ? 52 : 64, W / inRow / 2 - 4), hh: rows === 1 ? 32 : 26 };
         } else {
           const gap = Math.min(112, (H - 110) / n);
           t = { x: 770, y: H / 2 + (i - (n - 1) / 2) * gap, hw: 92, hh: Math.min(32, gap / 2 - 6) };

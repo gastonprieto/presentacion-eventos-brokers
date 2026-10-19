@@ -342,13 +342,25 @@ test('escena: pubsub ＋Fraude sin frenar', async page => {
   check(r.fraude > 0, `fraude.done=${r.fraude}`);
 });
 
-test('notas: slides 1 a 4 con pregunta', async page => {
+test('notas: las 9 slides con pregunta', async page => {
   await open(page);
-  const bad = await page.evaluate(() => [...document.querySelectorAll('.reveal .slides > section')].slice(0, 4)
-    .map((s, i) => (s.querySelector('aside.notes') && s.querySelector('aside.notes').textContent.includes('?') ? 0 : i + 1)).filter(Boolean));
-  const n = await page.evaluate(() => document.querySelectorAll('.reveal .slides > section').length);
-  check(n >= 4, `slides=${n}`);
-  check(!bad.length, `sin pregunta: ${bad}`);
+  const r = await page.evaluate(() => [...document.querySelectorAll('.reveal .slides > section')]
+    .map((s, i) => (s.querySelector('aside.notes') && s.querySelector('aside.notes').textContent.includes('?') ? 0 : i + 1)));
+  check(r.length === 9, `slides=${r.length}`);
+  check(!r.filter(Boolean).length, `sin pregunta: ${r.filter(Boolean)}`);
+});
+
+test('estática: resumen nombra Kafka y EventBridge', async page => {
+  await open(page);
+  const t = await page.evaluate(i => window.__sec(i) ? window.__sec(i).textContent : '', SL.summary);
+  check(t.includes('Kafka') && t.includes('EventBridge'), 'faltan Kafka / EventBridge en el resumen');
+});
+
+test('escena: portada anima en escritorio', async page => {
+  await open(page);
+  await page.waitForFunction(() => window.__sec(0)._scene, { timeout: 4000 });
+  const mode = await page.evaluate(() => window.__sec(0)._scene.sim.o.mode);
+  check(mode === 'pubsub', `mode=${mode}`);
 });
 
 test('escena: analytics se atrasa y réplicas lo arreglan', async page => {
