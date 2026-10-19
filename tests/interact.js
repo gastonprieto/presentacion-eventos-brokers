@@ -414,6 +414,37 @@ test('escena: cadena de eventos', async page => {
   check(r.color === '#a78bfa', `color=${r.color}`);
 });
 
+test('escena: ＋Fraude deshabilitado se ve distinto', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.pubsub, sec => {
+    const b = sec.querySelector('[data-act=add]');
+    b.click();
+    return { disabled: b.disabled, opacity: +getComputedStyle(b).opacity };
+  });
+  check(r.disabled, 'el botón no quedó deshabilitado');
+  check(r.opacity < 0.7, `opacidad=${r.opacity}`);
+});
+
+test('mobile: el cartel de redeploy no tapa a los servicios', async page => {
+  await open(page, 0, true);
+  const r = await page.evaluate(async i => {
+    const sec = window.__sec(i);
+    sec.scrollIntoView();
+    for (let k = 0; k < 40 && !sec._scene; k++) await new Promise(r => setTimeout(r, 100));
+    sec.querySelector('[data-act=add]').click();
+    const sim = sec._scene.sim;
+    sim.fastForward(0.6);
+    sim._frame();
+    const b = sim._banner && sim._banner.querySelector('rect');
+    if (!b) return { banner: false };
+    const by = +b.getAttribute('y'), bh = +b.getAttribute('height');
+    const hit = sim.subs.filter(x => x.y + x.hh > by && x.y - x.hh < by + bh).map(x => x.id);
+    return { banner: true, hit };
+  }, SL.direct);
+  check(r.banner, 'no apareció el cartel');
+  check(!r.hit.length, `el cartel tapa: ${r.hit}`);
+});
+
 /* ---------- runner ---------- */
 
 (async () => {

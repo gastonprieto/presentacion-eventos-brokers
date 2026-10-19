@@ -387,3 +387,4 @@ html.mobile .products { font-size: 12px; text-align: left; }
 html.mobile .reveal section .compare:has(+ .products) { height: auto; }
 html.mobile .compare + .products { margin-top: 14px; }
 .summary .card p { font-size: 15px; }
+.btn:disabled { opacity: .45; cursor: default; pointer-events: none; }

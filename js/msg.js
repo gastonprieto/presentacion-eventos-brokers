@@ -701,7 +701,8 @@
       if (this._banner) { this._banner.remove(); this._banner = null; }
       if (!text) return;
       const g = svgEl('g', { class: 'banner' }, this.gTop);
-      const y = this.v ? H - 22 : 40, w = this.v ? 360 : 440;
+      // en celular va entre el productor y los servicios, para no tapar las cajas
+      const y = this.v ? 175 : 40, w = this.v ? 360 : 440;
       svgEl('rect', { x: W / 2 - w / 2, y: y - 20, width: w, height: 36, rx: 10, stroke: color }, g);
       const t = svgEl('text', { x: W / 2, y: y + 4, 'text-anchor': 'middle', fill: color }, g);
       t.textContent = text;
