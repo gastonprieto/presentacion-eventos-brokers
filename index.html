@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eventos con brokers</title>
+  <script>
+    // Celular → versión móvil (html.mobile): documento vertical sin reveal.js.
+    // Se puede forzar con ?mobile=1 o ?mobile=0. Las tablets usan la versión de escritorio.
+    (function () {
+      var q = new URLSearchParams(location.search).get('mobile');
+      var phone = /Mobi|iPhone|iPod/i.test(navigator.userAgent) || Math.min(screen.width, screen.height) < 600;
+      if (q === '1' || (q !== '0' && phone)) document.documentElement.classList.add('mobile');
+    })();
+  </script>
+  <link rel="stylesheet" href="vendor/reveal/reveal.css">
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============ 1. PORTADA ============ -->
+<section class="title-slide">
+  <svg class="bg"></svg>
+  <div class="hero">
+    <div class="kicker">Publicar y suscribirse</div>
+    <h1>Eventos con <span class="grad">brokers</span></h1>
+    <p class="sub">Avisar que algo pasó y que cada interesado haga lo suyo: consumidores distintos, desacoplados y a su propio ritmo.</p>
+    <p class="keys"><kbd>→</kbd> avanzar · <kbd>S</kbd> notas del orador · <kbd>F</kbd> pantalla completa · <kbd>O</kbd> vista general</p>
+    <p class="keys-mobile">Deslizá hacia abajo para recorrerla. Las simulaciones se activan al llegar a cada una.</p>
+  </div>
+  <aside class="notes">
+    Bienvenida. En la clase anterior vimos colas: un mensaje es un pedido de trabajo y lo toma uno de varios workers iguales.
+    Hoy cambiamos la pregunta: ¿qué pasa cuando lo que hay que comunicar es que algo ocurrió, y a varios servicios distintos les interesa?
+    Pregunta para la clase: cuando se confirma una compra en un e-commerce, ¿qué cosas tienen que pasar después?
+  </aside>
+</section>
+
+</div>
+</div>
+
+<script src="vendor/reveal/reveal.js"></script>
+<script src="vendor/reveal/plugin/notes.js"></script>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/chart.umd.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/msg.js"></script>
+<script src="js/widgets.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
