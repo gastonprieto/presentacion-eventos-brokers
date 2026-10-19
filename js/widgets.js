@@ -231,5 +231,27 @@
     return ch;
   }
 
-  window.Widgets = { stats, chart, histogram, strip, fmtLat, mstats, qchart };
+  // Atraso por suscriptor (eventos recibidos sin procesar), una barra por fila
+  function lag(el, sim, ids) {
+    const MAX = 30;
+    const build = () => {
+      el.innerHTML = ids.map(id => {
+        const sb = sim.subs.find(x => x.id === id);
+        return `<div class="lag-row" data-id="${id}"><span class="lag-name">${sb ? sb.icon + ' ' + sb.label : id}</span><i><b></b></i><span class="lag-n">0</span></div>`;
+      }).join('');
+    };
+    build();
+    throttle(sim, 0.25, isReset => {
+      if (isReset) build();
+      ids.forEach(id => {
+        const s = sim.sub(id), row = el.querySelector(`[data-id="${id}"]`);
+        if (!s || !row) return;
+        row.querySelector('b').style.width = `${Math.min(100, (s.lag / MAX) * 100)}%`;
+        row.querySelector('.lag-n').textContent = s.lag;
+        row.classList.toggle('behind', s.lag > 3);
+      });
+    });
+  }
+
+  window.Widgets = { stats, chart, histogram, strip, fmtLat, mstats, qchart, lag };
 })();

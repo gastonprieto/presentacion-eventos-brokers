@@ -351,6 +351,57 @@ test('notas: slides 1 a 4 con pregunta', async page => {
   check(!bad.length, `sin pregunta: ${bad}`);
 });
 
+test('escena: analytics se atrasa y réplicas lo arreglan', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.pace, sec => {
+    const sim = sec._scene.sim;
+    sim.fastForward(20);
+    const lag0 = sim.sub('analytics').lag;
+    for (let i = 0; i < 2; i++) sec.querySelector('[data-act=add]').click();
+    sim.fastForward(40);
+    return { lag0, lag1: sim.sub('analytics').queueLen, workers: sim.sub('analytics').workers, others: sim.sub('stock').lag, bars: sec.querySelectorAll('.lag-row').length };
+  });
+  check(r.lag0 > 5, `lag inicial=${r.lag0}`);
+  check(r.workers === 3, `workers=${r.workers}`);
+  check(r.lag1 <= 1, `cola de analytics al final=${r.lag1}`);
+  check(r.others <= 1, `stock.lag=${r.others}`);
+  check(r.bars === 4, `filas de atraso=${r.bars}`);
+});
+
+test('escena: consistencia se ve y se cierra', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.consistency, sec => {
+    const sim = sec._scene.sim;
+    sec.querySelector('[data-act=order]').click();
+    sim.fastForward(0.8);
+    sim._frame();
+    const n = sec.querySelector('.cnt-orders').textContent, m = sec.querySelector('.cnt-stock').textContent;
+    const warn = sec.querySelector('.cnt-stock').classList.contains('warn');
+    sim.fastForward(5);
+    sim._frame();
+    return { n, m, warn, n2: sec.querySelector('.cnt-orders').textContent, m2: sec.querySelector('.cnt-stock').textContent, ok: sec.querySelector('.cnt-stock').classList.contains('ok') };
+  });
+  check(r.n === '1' && r.m === '0' && r.warn, `durante: órdenes=${r.n} stock=${r.m} warn=${r.warn}`);
+  check(r.n2 === '1' && r.m2 === '1' && r.ok, `después: órdenes=${r.n2} stock=${r.m2} ok=${r.ok}`);
+});
+
+test('escena: cadena de eventos', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.chain, sec => {
+    const sim = sec._scene.sim;
+    sim.fastForward(6);
+    const fe = sim.published('FacturaEmitida'), mails = sim.sub('mails').done;
+    sec.querySelector('[data-act=toggle]').click();
+    const a = sim.published('FacturaEmitida');
+    sim.fastForward(10);
+    return { fe, mails, a, b: sim.published('FacturaEmitida'), color: MsgKit.EV_COLORS.FacturaEmitida, listens: sim.subs.find(x => x.id === 'mails').listens.join() };
+  });
+  check(r.listens === 'FacturaEmitida', `mails escucha ${r.listens}`);
+  check(r.fe > 0 && r.mails > 0, `FacturaEmitida=${r.fe} mails.done=${r.mails}`);
+  check(r.b <= r.a + 1, `siguió emitiendo con Facturación apagada: ${r.a} → ${r.b}`);
+  check(r.color === '#a78bfa', `color=${r.color}`);
+});
+
 /* ---------- runner ---------- */
 
 (async () => {

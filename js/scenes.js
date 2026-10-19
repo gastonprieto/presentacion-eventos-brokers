@@ -78,5 +78,57 @@
 
   S.pubsub = slide => life(eventScene(slide, { mode: 'pubsub', rate: 1, seed: 4 }));
 
+  const SUBS = () => MsgKit.DEFAULT_SUBS.map(x => Object.assign({}, x));
+
+  /* ---------- 5. cada uno a su ritmo: Analytics lento, réplicas adentro ---------- */
+
+  S.pace = slide => {
+    const subs = SUBS().map(x => (x.id === 'analytics' ? Object.assign(x, { workTime: 1.2 }) : x));
+    const base = { mode: 'pubsub', rate: 1.5, seed: 5, subscribers: subs };
+    const sim = msetup(slide, base);
+    Widgets.lag(slide.querySelector('.lag'), sim, subs.map(x => x.id));
+    const n = () => sim.sub('analytics').workers;
+    on(slide, '[data-act=add]', () => sim.setSubscriberWorkers('analytics', n() + 1));
+    on(slide, '[data-act=remove]', () => sim.setSubscriberWorkers('analytics', n() - 1));
+    on(slide, '[data-act=reset]', () => sim.reset(base));
+    return life(sim);
+  };
+
+  /* ---------- 6. consistencia eventual: órdenes vs. stock descontado ---------- */
+
+  S.consistency = slide => {
+    const subs = SUBS().filter(x => x.id === 'facturacion' || x.id === 'stock')
+      .map(x => (x.id === 'stock' ? Object.assign(x, { workTime: 2 }) : x));
+    const base = { mode: 'pubsub', rate: 0, seed: 6, subscribers: subs };
+    const sim = msetup(slide, base);
+    const nEl = slide.querySelector('.cnt-orders'), mEl = slide.querySelector('.cnt-stock');
+    const draw = () => {
+      const n = sim.published('OrdenCreada'), m = sim.sub('stock').done;
+      nEl.textContent = n; mEl.textContent = m;
+      mEl.classList.toggle('warn', m < n);
+      mEl.classList.toggle('ok', m >= n);
+    };
+    sim.on('tick', draw);
+    sim.on('reset', draw);
+    on(slide, '[data-act=order]', () => sim.publish());
+    on(slide, '[data-act=reset]', () => sim.reset(base));
+    draw();
+    return life(sim);
+  };
+
+  /* ---------- 7. reacciones en cadena: FacturaEmitida → Mails ---------- */
+
+  S.chain = slide => {
+    const subs = SUBS().map(x => (x.id === 'mails' ? Object.assign(x, { listens: ['FacturaEmitida'] }) : x));
+    const base = { mode: 'pubsub', rate: 0.8, seed: 7, subscribers: subs };
+    const sim = msetup(slide, base);
+    const btn = slide.querySelector('[data-act=toggle]');
+    const label = () => { btn.textContent = sim.sub('facturacion').up ? '⏻ Apagar Facturación' : '⏻ Prender Facturación'; };
+    on(slide, '[data-act=toggle]', () => { sim.setSubscriberUp('facturacion', !sim.sub('facturacion').up); label(); });
+    on(slide, '[data-act=reset]', () => { sim.reset(base); label(); });
+    sim.svg.addEventListener('click', () => setTimeout(label));
+    return life(sim);
+  };
+
   window.Scenes = S;
 })();

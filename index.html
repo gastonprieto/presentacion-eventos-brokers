@@ -132,6 +132,97 @@
   </aside>
 </section>
 
+<!-- ============ 5. CADA UNO A SU RITMO ============ -->
+<section data-scene="pace">
+  <div class="kicker">Heterogéneos</div>
+  <h2>Cada suscriptor va a su ritmo</h2>
+  <div class="demo">
+    <div class="stage">
+      <svg class="sim"></svg>
+      <div class="hint">Analytics es lento: su carril crece</div>
+    </div>
+    <div class="panel">
+      <p class="lead">Analytics tarda 1,2 s por evento y llegan 1,5 por segundo: <b>se atrasa</b>. Los demás ni se enteran.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="add">＋ Réplica de Analytics</button>
+        <button class="btn" data-act="remove">－</button>
+        <button class="btn ghost" data-act="reset">↺</button>
+      </div>
+      <div class="box"><div class="label">Atraso por suscriptor (eventos sin procesar)</div><div class="lag"></div></div>
+      <ul class="points">
+        <li class="fragment"><b>Heterogéneos</b> entre sí: cada uno hace otra cosa y tarda distinto.</li>
+        <li class="fragment"><b>Homogéneos adentro</b>: las réplicas de Analytics se reparten su cola, como los workers de la clase anterior.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    Dejar correr unos segundos: Analytics acumula atraso y el resto se mantiene en cero.
+    Sumar réplicas de Analytics: con 3 procesa 2,5 por segundo y se pone al día.
+    Remarcar las dos capas: entre suscriptores hay fan-out (cada uno recibe su copia); adentro de cada suscriptor hay una cola con workers iguales que compiten.
+    Pregunta para la clase: ¿qué pasa si Analytics se atrasa una hora? ¿A quién le afecta?
+  </aside>
+</section>
+
+<!-- ============ 6. CONSISTENCIA EVENTUAL ============ -->
+<section data-scene="consistency">
+  <div class="kicker purple">Consistencia eventual</div>
+  <h2>Por un momento, no todos están al día</h2>
+  <div class="demo">
+    <div class="stage">
+      <svg class="sim"></svg>
+      <div class="hint">🛒 creá una orden y mirá los contadores</div>
+    </div>
+    <div class="panel">
+      <p class="lead">La orden ya existe, pero Stock todavía no procesó el evento. Durante esa ventana, <b>los datos no coinciden</b>.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="order">🛒 Nueva orden</button>
+        <button class="btn ghost" data-act="reset">↺</button>
+      </div>
+      <div class="counters">
+        <div class="counter"><b class="cnt-orders">0</b><span>Órdenes creadas</span></div>
+        <div class="counter"><b class="cnt-stock ok">0</b><span>Stock descontado</span></div>
+      </div>
+      <ul class="points">
+        <li class="fragment">Tarde o temprano todos coinciden: <b>consistencia eventual</b>.</li>
+        <li class="fragment">El diseño tiene que tolerar esa ventana (por ejemplo, reservar stock antes de confirmar).</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    Tocar "Nueva orden" varias veces seguidas: el contador de stock se queda atrás (amarillo) y después se pone al día (verde).
+    En un sistema real la ventana suele ser de milisegundos o segundos, pero existe y hay que diseñar pensando en ella.
+    Pregunta para la clase: ¿qué ve el usuario si mira el stock justo en este momento? ¿Es grave?
+  </aside>
+</section>
+
+<!-- ============ 7. REACCIONES EN CADENA ============ -->
+<section data-scene="chain">
+  <div class="kicker">Reacciones en cadena</div>
+  <h2>Un evento dispara otro</h2>
+  <div class="demo">
+    <div class="stage">
+      <svg class="sim"></svg>
+      <div class="legend"><span><i style="background:#7dd3fc"></i>OrdenCreada</span><span><i style="background:#a78bfa"></i>FacturaEmitida</span></div>
+    </div>
+    <div class="panel">
+      <p class="lead">Facturación escucha <b>OrdenCreada</b> y, cuando termina, publica <b>FacturaEmitida</b>. Mails escucha ese segundo evento para mandar la factura.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="toggle">⏻ Apagar Facturación</button>
+        <button class="btn ghost" data-act="reset">↺</button>
+      </div>
+      <ul class="points">
+        <li class="fragment">Nadie escribió el flujo completo <b>en un solo lugar</b>: surge de quién escucha qué.</li>
+        <li class="fragment">Fácil de extender, pero más difícil de <b>seguir qué pasó</b> con una orden.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    Mirar los eventos violetas: salen de Facturación, vuelven al broker y llegan a Mails.
+    Apagar Facturación: dejan de salir facturas y Mails se queda sin trabajo, aunque Mails está perfecto. La dependencia existe, pero no está escrita en ningún lado.
+    Pregunta para la clase: si un cliente dice "no me llegó la factura", ¿por dónde empiezan a buscar?
+  </aside>
+</section>
+
 </div>
 </div>
 

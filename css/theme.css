@@ -369,3 +369,15 @@ html.mobile .products { font-size: 12px; text-align: left; }
 .msgsim .lane { fill: rgba(251, 146, 60, .06); stroke: rgba(251, 146, 60, .35); stroke-width: 1; }
 .msgsim .sub.down .node-box { fill: #3a1018; stroke: var(--red); }
 .msgsim .sub.down .t-sub { fill: var(--red); font-weight: 700; }
+.lag { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.lag-row { display: grid; grid-template-columns: 120px 1fr 34px; align-items: center; gap: 8px; font-size: 14px; }
+.lag-row i { height: 10px; background: #1e293b; border-radius: 5px; overflow: hidden; }
+.lag-row i b { display: block; height: 100%; width: 0; background: var(--orange); transition: width .25s; }
+.lag-row .lag-n { font: 700 14px var(--mono); text-align: right; color: #cbd5e1; }
+.lag-row.behind .lag-n { color: var(--orange); }
+.counters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.counter { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.counter b { display: block; font: 800 44px var(--mono); color: #fff; transition: color .3s; }
+.counter b.warn { color: var(--yellow); }
+.counter b.ok { color: var(--green); }
+.counter span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
