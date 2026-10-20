@@ -515,15 +515,24 @@
     { id: 'mails', label: 'Mails', icon: '✉️', workTime: 0.6, workers: 1, listens: ['OrdenCreada'] },
     { id: 'analytics', label: 'Analytics', icon: '📊', workTime: 0.4, workers: 1, listens: ['OrdenCreada'] }
   ];
-  Object.assign(DEFAULTS, { event: 'OrdenCreada', maxSubscribers: 5, callTimeout: 2, subscribers: null });
+  Object.assign(DEFAULTS, { event: 'OrdenCreada', maxSubscribers: 5, subscribers: null, client: false });
 
   Object.assign(MsgSim.prototype, {
     _buildEvents() {
-      const v = this.v, L = this.o.labels;
-      this.prod = v ? { x: W / 2, y: 40, hw: 96, hh: 26 } : { x: 100, y: H / 2, hw: 74, hh: 36 };
-      this._box(this.prod, 'prod', L.producer === DEFAULTS.labels.producer ? '🛒 Órdenes' : L.producer, 'productor');
+      const v = this.v, L = this.o.labels, cl = this.o.client;
+      if (cl) {
+        // el cliente le pide la orden a Órdenes y espera su respuesta
+        this.client = v ? { x: W / 2, y: 30, hw: 80, hh: 22 } : { x: 70, y: H / 2, hw: 56, hh: 32 };
+        this._box(this.client, 'client', '👤 Cliente', 'navegador');
+        this.client.g.style.setProperty('--c', C.req);
+        this.prod = v ? { x: W / 2, y: 110, hw: 96, hh: 24 } : { x: 215, y: H / 2, hw: 64, hh: 36 };
+      } else this.prod = v ? { x: W / 2, y: 40, hw: 96, hh: 26 } : { x: 100, y: H / 2, hw: 74, hh: 36 };
+      this._box(this.prod, 'prod', L.producer === DEFAULTS.labels.producer ? '🛒 Órdenes' : L.producer, this.o.mode === 'direct' ? 'servicio' : 'productor');
+      if (cl) this._link(this.client, this.prod);
       if (this.o.mode === 'pubsub') {
-        this.broker = { x: v ? W / 2 : 400, y: v ? 160 : H / 2, hw: v ? 188 : 150, hh: v ? 62 : 200 };
+        this.broker = cl
+          ? { x: v ? W / 2 : 430, y: v ? 205 : H / 2, hw: v ? 188 : 130, hh: v ? 62 : 200 }
+          : { x: v ? W / 2 : 400, y: v ? 160 : H / 2, hw: v ? 188 : 150, hh: v ? 62 : 200 };
         this._box(this.broker, 'queue broker', 'Broker', '', true);
         this.broker.title.setAttribute('text-anchor', 'start');
         this.broker.cells = svgEl('g', {}, this.broker.g);
@@ -585,35 +594,49 @@
     _sendEvent() {
       this.c.sent++;
       this.sentLog.push(this.now);
-      const t0 = this.now;
+      if (this.client) this._fly({}, this.client, this.prod, C.req, () => this._handleOrder());
+      else this._handleOrder();
+    },
+
+    // Órdenes le contesta al cliente (si lo hay)
+    _reply(code, color) {
+      if (this.client) this._fly({}, this.prod, this.client, color, () => this._pop(this.client, code, color));
+      else this._pop(this.prod, code, color);
+    },
+
+    _handleOrder() {
       if (this.o.mode === 'pubsub') {
         this._fly({}, this.prod, this.broker, EV_COLORS[this.o.event], () => {
           this.c.accepted++;
           this.respLog.push([this.now, 0]);
           this._publish(this.o.event);
+          // apenas el broker la acepta, Órdenes ya puede contestar
+          if (this.client) this._fly({}, this.broker, this.prod, C.ok, () => this._reply('200', C.ok), this.o.travel * 0.6);
         });
         return;
       }
       // direct: llamadas en serie, cada una espera la respuesta
       this.pub[this.o.event] = (this.pub[this.o.event] || 0) + 1;
       const targets = this.subs.filter(x => x.listens.includes(this.o.event));
+      const tr = this.o.travel * 0.6;
       let spent = 0;
       const next = i => {
         if (i >= targets.length) {
           this.c.done++;
           this.respLog.push([this.now, spent]);
-          this._pop(this.prod, '✔', C.ok);
+          this._reply('200', C.ok);
           return;
         }
         const sb = targets[i];
         this._fly({}, this.prod, sb, C.req, () => {
           if (!sb.up) {
-            this.clock.after(this.o.callTimeout, () => {
+            // nadie atiende: a Órdenes le falla la conexión y le contesta 503 al cliente
+            this._pop(sb, '✕ conexión', C.err);
+            this._fly({}, sb, this.prod, C.err, () => {
               this.c.rejected++;
-              this.respLog.push([this.now, spent + this.o.callTimeout]);
-              this._pop(sb, 'timeout', C.err);
-              this._pop(this.prod, '✗ orden fallida', C.err);
-            });
+              this.respLog.push([this.now, spent]);
+              this._reply('503', C.err);
+            }, tr);
             return;
           }
           const d = this._workTime(sb.workTime);
@@ -622,12 +645,11 @@
             sb.busy.pop();
             sb.done++; sb.received++;
             spent += d;
-            next(i + 1);
+            this._fly({}, sb, this.prod, C.ok, () => next(i + 1), tr);
           });
-        }, this.o.travel * 0.6);
+        }, tr);
       };
       next(0);
-      void t0;
     },
 
     _publish(type) {

@@ -316,6 +316,39 @@ test('escena: direct clic apaga y falla', async page => {
   check(r.rejected > 0, `rejected=${r.rejected}`);
 });
 
+test('escena: direct con un servicio caído el cliente recibe 503', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.direct, sec => {
+    const sim = sec._scene.sim;
+    const seen = new Set();
+    const pop = sim._pop.bind(sim);
+    sim._pop = (n, text, color, dy) => { if (n === sim.client) seen.add(text); pop(n, text, color, dy); };
+    sim.fastForward(25);
+    const ok = seen.has('200');
+    seen.clear();
+    sim.setSubscriberUp('mails', false);
+    sim.fastForward(25);
+    return { client: !!sim.client, ok, codes: [...seen] };
+  });
+  check(r.client, 'no hay cliente');
+  check(r.ok, 'el cliente nunca recibió 200');
+  check(r.codes.includes('503'), `códigos con Mails caído: ${r.codes}`);
+});
+
+test('escena: pubsub el cliente recibe 200 con un suscriptor caído', async page => {
+  await open(page);
+  const r = await evalScene(page, SL.pubsub, sec => {
+    const sim = sec._scene.sim;
+    const seen = new Set();
+    const pop = sim._pop.bind(sim);
+    sim._pop = (n, text, color, dy) => { if (n === sim.client) seen.add(text); pop(n, text, color, dy); };
+    sim.setSubscriberUp('mails', false);
+    sim.fastForward(25);
+    return [...seen];
+  });
+  check(r.length === 1 && r[0] === '200', `códigos: ${r}`);
+});
+
 test('escena: direct ＋Fraude frena al productor', async page => {
   await open(page);
   const r = await evalScene(page, SL.direct, sec => {
@@ -335,7 +368,7 @@ test('escena: pubsub ＋Fraude sin frenar', async page => {
     const sim = sec._scene.sim;
     sec.querySelector('[data-act=add]').click();
     const a = sim.window(5).sent;
-    sim.fastForward(4);
+    sim.fastForward(12);
     return { a, b: sim.window(5).sent, fraude: sim.sub('fraude') && sim.sub('fraude').done };
   });
   check(r.b > r.a, `el productor se frenó: ${r.a} → ${r.b}`);

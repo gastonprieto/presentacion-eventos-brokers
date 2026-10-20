@@ -80,22 +80,22 @@
       <div class="hint">👆 clic en un servicio para apagarlo</div>
     </div>
     <div class="panel">
-      <p class="lead">Cada orden nueva llama <b>en serie</b> a Facturación, Stock, Mails y Analytics, y espera que todos respondan.</p>
+      <p class="lead">El cliente pide una orden. Órdenes llama <b>en serie</b> a Facturación, Stock, Mails y Analytics, y recién cuando todos responden le contesta al cliente.</p>
       <div class="actions">
         <button class="btn primary" data-act="add">＋ Fraude</button>
         <button class="btn ghost" data-act="reset">↺</button>
       </div>
       <div class="mstats" data-fields="sent,rejected,respP95"></div>
       <ul class="points">
-        <li class="fragment">Si Mails se cae, <b>falla la orden</b>, aunque mandar el mail no era urgente.</li>
+        <li class="fragment">Si Mails se cae, el cliente recibe un <b>503</b>, aunque mandar el mail no era urgente.</li>
         <li class="fragment">La respuesta tarda lo que tardan <b>todos juntos</b>.</li>
         <li class="fragment">Sumar un servicio nuevo obliga a <b>cambiar y redesplegar Órdenes</b>.</li>
       </ul>
     </div>
   </div>
   <aside class="notes">
-    Mostrar que cada orden tarda la suma de los cuatro servicios.
-    Apagar Mails con un clic: las órdenes empiezan a fallar por timeout. Analytics ni siquiera se entera.
+    Seguir un pedido: sale del cliente, Órdenes llama a cada servicio y espera su respuesta, y recién al final le contesta 200 al cliente. Cada orden tarda la suma de los cuatro.
+    Apagar Mails con un clic: a Órdenes le falla la conexión con Mails y le devuelve 503 al cliente. Analytics ni siquiera se entera.
     Tocar "＋ Fraude": Órdenes se frena porque hay que cambiar su código para agregar la llamada.
     Pregunta para la clase: ¿por qué una compra tiene que fallar si el que se cayó es el servicio de mails?
   </aside>
@@ -111,7 +111,7 @@
       <div class="hint">un evento → una copia para cada suscriptor</div>
     </div>
     <div class="panel">
-      <p class="lead">Órdenes publica <b>OrdenCreada</b> en el broker y sigue. El broker deja <b>una copia en la cola de cada suscriptor</b>.</p>
+      <p class="lead">Órdenes publica <b>OrdenCreada</b> en el broker y le contesta al cliente apenas el broker la acepta. El broker deja <b>una copia en la cola de cada suscriptor</b>.</p>
       <div class="actions">
         <button class="btn primary" data-act="add">＋ Fraude</button>
         <button class="btn ghost" data-act="reset">↺</button>
@@ -127,7 +127,7 @@
   <aside class="notes">
     Mirar cómo cada evento que entra al broker aparece en los cuatro carriles: uno por suscriptor.
     Tocar "＋ Fraude": aparece un suscriptor nuevo y empieza a recibir eventos, y Órdenes nunca se frenó.
-    Apagar uno con un clic: su carril se llena, pero las órdenes no fallan.
+    Apagar uno con un clic: su carril se llena, pero el cliente sigue recibiendo 200.
     Pregunta para la clase: comparado con la clase de colas, ¿qué cambió? ¿Cuántos reciben cada mensaje y qué tan parecidos son entre sí?
   </aside>
 </section>

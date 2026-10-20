@@ -72,11 +72,12 @@
 
   /* ---------- 3. sin broker: llamadas directas en serie ---------- */
 
-  S.direct = slide => life(eventScene(slide, { mode: 'direct', rate: 1, seed: 3 }));
+  // más lentas que el resto para poder seguir cada pedido del cliente
+  S.direct = slide => life(eventScene(slide, { mode: 'direct', rate: 0.4, travel: 0.9, seed: 3, client: true }));
 
   /* ---------- 4. publicar y suscribirse ---------- */
 
-  S.pubsub = slide => life(eventScene(slide, { mode: 'pubsub', rate: 1, seed: 4 }));
+  S.pubsub = slide => life(eventScene(slide, { mode: 'pubsub', rate: 0.5, travel: 0.9, seed: 4, client: true }));
 
   /* ---------- 1. portada: pub/sub decorativo de fondo ---------- */
 
