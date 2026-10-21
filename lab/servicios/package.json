@@ -1,0 +1,7 @@
+{
+  "name": "lab-eventos-brokers",
+  "private": true,
+  "dependencies": {
+    "amqplib": "^2.2.0"
+  }
+}

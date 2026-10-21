@@ -1,0 +1,72 @@
+# Laboratorio de eventos con brokers: Órdenes publica OrdenCreada en RabbitMQ y cada
+# servicio interesado recibe su copia. Instrucciones en el README ("Laboratorio con Docker").
+name: lab-eventos-brokers
+
+x-servicio: &servicio
+  build: ./lab/servicios
+  image: lab-eventos-brokers-servicio
+  restart: unless-stopped
+  depends_on:
+    rabbit: { condition: service_healthy }
+
+services:
+  rabbit:
+    image: rabbitmq:4.1-management-alpine
+    hostname: rabbit   # fijo, para que los mensajes guardados sobrevivan a recrear el contenedor
+    environment:
+      RABBITMQ_DEFAULT_USER: tienda
+      RABBITMQ_DEFAULT_PASS: tienda
+    ports: ["15672:15672"]   # panel: http://localhost:15672 (tienda / tienda)
+    volumes: ["rabbit:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 3s
+      retries: 30
+
+  ordenes:
+    <<: *servicio
+    command: ["node", "ordenes.js"]
+    ports: ["8080:3000"]
+
+  facturacion:
+    <<: *servicio
+    environment:
+      NOMBRE: Facturacion
+      ESCUCHA: OrdenCreada
+      ACCION: emito la factura
+      PUBLICA: FacturaEmitida     # reacción en cadena
+      WORK_MS: 400
+  stock:
+    <<: *servicio
+    environment:
+      NOMBRE: Stock
+      ESCUCHA: OrdenCreada
+      ACCION: descuento el stock
+      WORK_MS: 500
+  mails:
+    <<: *servicio
+    environment:
+      NOMBRE: Mails
+      ESCUCHA: OrdenCreada,FacturaEmitida
+      ACCION: mando el mail
+      WORK_MS: 200
+  analytics:
+    <<: *servicio
+    environment:
+      NOMBRE: Analytics
+      ESCUCHA: OrdenCreada
+      ACCION: registro la venta
+      WORK_MS: 1200               # el lento: docker compose up -d --scale analytics=3
+
+  # Un suscriptor nuevo que no toca a Órdenes: docker compose --profile fraude up -d
+  fraude:
+    <<: *servicio
+    profiles: ["fraude"]
+    environment:
+      NOMBRE: Fraude
+      ESCUCHA: OrdenCreada
+      ACCION: reviso si es fraude
+      WORK_MS: 400
+
+volumes:
+  rabbit:
