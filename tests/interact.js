@@ -375,11 +375,11 @@ test('escena: pubsub ＋Fraude sin frenar', async page => {
   check(r.fraude > 0, `fraude.done=${r.fraude}`);
 });
 
-test('notas: las 9 slides con pregunta', async page => {
+test('notas: las 10 slides con pregunta', async page => {
   await open(page);
   const r = await page.evaluate(() => [...document.querySelectorAll('.reveal .slides > section')]
     .map((s, i) => (s.querySelector('aside.notes') && s.querySelector('aside.notes').textContent.includes('?') ? 0 : i + 1)));
-  check(r.length === 9, `slides=${r.length}`);
+  check(r.length === 10, `slides=${r.length}`);
   check(!r.filter(Boolean).length, `sin pregunta: ${r.filter(Boolean)}`);
 });
 
